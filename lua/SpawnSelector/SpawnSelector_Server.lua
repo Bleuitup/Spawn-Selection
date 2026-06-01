@@ -30,41 +30,30 @@ end
 local function ClearSelectedSpawns()
 	kSelectedMarineSpawn = nil
 	kSelectedAlienSpawn = nil
+	Server.teamSpawnOverride = nil
 	local gameInfo = GetGameInfoEntity()
 	if gameInfo then
 		gameInfo:SetSelectedSpawn(Entity.invalidId)
 	end
 end
 
--- Override the vanilla tech point chooser so a cached selection wins. The cached
--- entity must still be present in the candidate list (it gets removed once chosen so
--- the other team can't reuse it) - otherwise fall through to the original logic.
-local originalChooseTechPoint
-originalChooseTechPoint = Class_ReplaceMethod("NS2Gamerules", "ChooseTechPoint",
-	function(self, techPoints, teamNumber)
-
-		if kEnabled then
-
-			if teamNumber == kTeam1Index and kSelectedMarineSpawn and table.contains(techPoints, kSelectedMarineSpawn) then
-				table.removevalue(techPoints, kSelectedMarineSpawn)
-				DebugLog("ChooseTechPoint team=%s -> cached marine %s", tostring(teamNumber), TPName(kSelectedMarineSpawn))
-				return kSelectedMarineSpawn
-			elseif teamNumber == kTeam2Index and kSelectedAlienSpawn and table.contains(techPoints, kSelectedAlienSpawn) then
-				table.removevalue(techPoints, kSelectedAlienSpawn)
-				DebugLog("ChooseTechPoint team=%s -> cached alien %s", tostring(teamNumber), TPName(kSelectedAlienSpawn))
-				return kSelectedAlienSpawn
-			end
-
-		end
-
-		local tp = originalChooseTechPoint(self, techPoints, teamNumber)
-		DebugLog("ChooseTechPoint team=%s -> VANILLA %s (enabled=%s alienCache=%s marineCache=%s alienInList=%s)",
-			tostring(teamNumber), TPName(tp), tostring(kEnabled), TPName(kSelectedAlienSpawn), TPName(kSelectedMarineSpawn),
-			tostring(kSelectedAlienSpawn ~= nil and table.contains(techPoints, kSelectedAlienSpawn)))
-		return tp
-
+-- Apply the alien commander's pick via Server.teamSpawnOverride - the highest-priority spawn
+-- mechanism in NS2Gamerules:ResetGame (checked before Server.spawnSelectionOverrides and before
+-- ChooseTechPoint). Many competitive servers/maps populate Server.spawnSelectionOverrides with
+-- fixed spawn pairs, which silently bypassed our earlier ChooseTechPoint override - that was the
+-- cause of "picked X but spawned at Y". teamSpawnOverride wins over those, and is non-destructive:
+-- we don't have to wipe the map's pairs, which still apply when there is no pick (random). Names
+-- must be lowercase to match the comparison ResetGame does.
+local function ApplyTeamSpawnOverride()
+	if kEnabled and kSelectedAlienSpawn and kSelectedMarineSpawn then
+		Server.teamSpawnOverride = { {
+			marineSpawn = string.lower(kSelectedMarineSpawn:GetLocationName()),
+			alienSpawn = string.lower(kSelectedAlienSpawn:GetLocationName())
+		} }
+	else
+		Server.teamSpawnOverride = nil
 	end
-)
+end
 
 -- Diagnostic: log whether something else is steering spawns when the round actually resets.
 -- ResetGame uses Server.teamSpawnOverride / Server.spawnSelectionOverrides ahead of ChooseTechPoint,
@@ -155,11 +144,13 @@ local function OnSpawnSelectionMessage(client, message)
 
 	local tp = Shared.GetEntity(message.techPointId)
 	if tp and tp:isa("TechPoint") and (tp:GetTeamNumberAllowed() == 0 or tp:GetTeamNumberAllowed() == kTeam2Index) then
-		-- Valid alien-allowed pick: cache it and choose a different marine spawn.
+		-- Valid alien-allowed pick: cache it, choose a different marine spawn, and install the
+		-- override so it actually wins at round start.
 		kSelectedAlienSpawn = tp
 		kSelectedMarineSpawn = PickMarineSpawn(tp)
+		ApplyTeamSpawnOverride()
 		GetGameInfoEntity():SetSelectedSpawn(tp:GetId())
-		DebugLog("pick ACCEPTED by %s: alien=%s marine=%s", ToString(player:GetName()), TPName(tp), TPName(kSelectedMarineSpawn))
+		DebugLog("pick ACCEPTED by %s: alien=%s marine=%s teamSpawnOverride=%s", ToString(player:GetName()), TPName(tp), TPName(kSelectedMarineSpawn), tostring(Server.teamSpawnOverride ~= nil))
 	else
 		-- Random / clear request (or an invalid id) - revert to vanilla selection.
 		ClearSelectedSpawns()
