@@ -79,33 +79,54 @@ originalEndGame = Class_ReplaceMethod("NS2Gamerules", "EndGame",
 	end
 )
 
--- Pick a marine tech point different from the alien's choice, weighted by GetChooseWeight().
+local function ResolveTechPointByName(lowerName)
+	for _, tp in ipairs(EntityListToTable(Shared.GetEntitiesWithClassname("TechPoint"))) do
+		if string.lower(tp:GetLocationName()) == lowerName then
+			return tp
+		end
+	end
+	return nil
+end
+
+-- Pick a random VALID marine tech point for the alien's chosen hive. Maps define their legal
+-- opposing start pairs via 'spawn_selection_override' map entities (Server.spawnSelectionOverrides),
+-- so we pick randomly among the marine spawns the map pairs with the alien's pick. This keeps the
+-- result both random AND a legal pairing - an illegal pairing makes ResetGame reject our override
+-- and fall back to a random map pair (the "picked Smelting, marines got Turbine in the log but
+-- spawned at Flow" case). If the map has no pair data, fall back to any random tech point that
+-- isn't the alien's. Uses math.random (the old techPointRandomizer:random call kept returning the
+-- first tech point, so the marine spawn was effectively fixed).
 local function PickMarineSpawn(alienTechPoint)
 
-	local gameRules = GetGamerules()
-	local techPoints = EntityListToTable(Shared.GetEntitiesWithClassname("TechPoint"))
+	local alienName = string.lower(alienTechPoint:GetLocationName())
 
+	if Server.spawnSelectionOverrides then
+		local validMarineNames = { }
+		for _, pair in ipairs(Server.spawnSelectionOverrides) do
+			if pair.alienSpawn == alienName and pair.marineSpawn and pair.marineSpawn ~= alienName then
+				table.insertunique(validMarineNames, pair.marineSpawn)
+			end
+		end
+		if #validMarineNames > 0 then
+			local marineTP = ResolveTechPointByName(validMarineNames[math.random(#validMarineNames)])
+			if marineTP then
+				return marineTP
+			end
+		end
+	end
+
+	-- Fallback: any random valid marine tech point that isn't the alien's pick.
 	local validTechPoints = { }
-	local totalTechPointWeight = 0
-	for _, currentTechPoint in ipairs(techPoints) do
-
-		local teamNum = currentTechPoint:GetTeamNumberAllowed()
-		if currentTechPoint ~= alienTechPoint and (teamNum == 0 or teamNum == kTeam1Index) and teamNum ~= 3 then
-			table.insert(validTechPoints, currentTechPoint)
-			totalTechPointWeight = totalTechPointWeight + currentTechPoint:GetChooseWeight()
-		end
-
-	end
-
-	local chosenTechPointWeight = gameRules.techPointRandomizer:random(0, totalTechPointWeight)
-	for _, currentTechPoint in ipairs(validTechPoints) do
-		chosenTechPointWeight = chosenTechPointWeight - currentTechPoint:GetChooseWeight()
-		if chosenTechPointWeight <= 0 then
-			return currentTechPoint
+	for _, tp in ipairs(EntityListToTable(Shared.GetEntitiesWithClassname("TechPoint"))) do
+		local teamNum = tp:GetTeamNumberAllowed()
+		if tp ~= alienTechPoint and (teamNum == 0 or teamNum == kTeam1Index) and teamNum ~= 3 then
+			table.insert(validTechPoints, tp)
 		end
 	end
-
-	return validTechPoints[1]
+	if #validTechPoints > 0 then
+		return validTechPoints[math.random(#validTechPoints)]
+	end
+	return nil
 
 end
 

@@ -13,8 +13,9 @@ deliberate starting positions instead of the usual random spawns.
 - Before the round starts, the **alien commander** sees a **"SELECT STARTING LOCATION"**
   panel listing every hive location available on the map.
 - Whatever the commander selects becomes the **alien starting hive**.
-- The **marine base** is then placed at a different tech point (chosen at random from the
-  remaining valid spots), so the two teams never share a starting location.
+- The **marine base** is then placed at a different start location, chosen at random from the
+  map's valid opposing spawns for the alien's pick (falling back to any other tech point on
+  maps that don't define spawn pairs), so the two teams never share a starting location.
 - The selection is highlighted in green and syncs to the alien team so everyone can see
   the chosen spot.
 
