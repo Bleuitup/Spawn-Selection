@@ -15,6 +15,18 @@ local kEnabled = true
 local kSelectedMarineSpawn
 local kSelectedAlienSpawn
 
+-- Temporary diagnostic logging. Toggle with "sv_spawnselect_debug <true/false>".
+-- All lines are prefixed with [SpawnSelector] so they are easy to grep in the server log.
+local kDebug = true
+local function DebugLog(...)
+	if kDebug then
+		Shared.Message("[SpawnSelector] " .. string.format(...))
+	end
+end
+local function TPName(tp)
+	return (tp and tp.GetLocationName and tp:GetLocationName()) or "nil"
+end
+
 local function ClearSelectedSpawns()
 	kSelectedMarineSpawn = nil
 	kSelectedAlienSpawn = nil
@@ -35,16 +47,37 @@ originalChooseTechPoint = Class_ReplaceMethod("NS2Gamerules", "ChooseTechPoint",
 
 			if teamNumber == kTeam1Index and kSelectedMarineSpawn and table.contains(techPoints, kSelectedMarineSpawn) then
 				table.removevalue(techPoints, kSelectedMarineSpawn)
+				DebugLog("ChooseTechPoint team=%s -> cached marine %s", tostring(teamNumber), TPName(kSelectedMarineSpawn))
 				return kSelectedMarineSpawn
 			elseif teamNumber == kTeam2Index and kSelectedAlienSpawn and table.contains(techPoints, kSelectedAlienSpawn) then
 				table.removevalue(techPoints, kSelectedAlienSpawn)
+				DebugLog("ChooseTechPoint team=%s -> cached alien %s", tostring(teamNumber), TPName(kSelectedAlienSpawn))
 				return kSelectedAlienSpawn
 			end
 
 		end
 
-		return originalChooseTechPoint(self, techPoints, teamNumber)
+		local tp = originalChooseTechPoint(self, techPoints, teamNumber)
+		DebugLog("ChooseTechPoint team=%s -> VANILLA %s (enabled=%s alienCache=%s marineCache=%s alienInList=%s)",
+			tostring(teamNumber), TPName(tp), tostring(kEnabled), TPName(kSelectedAlienSpawn), TPName(kSelectedMarineSpawn),
+			tostring(kSelectedAlienSpawn ~= nil and table.contains(techPoints, kSelectedAlienSpawn)))
+		return tp
 
+	end
+)
+
+-- Diagnostic: log whether something else is steering spawns when the round actually resets.
+-- ResetGame uses Server.teamSpawnOverride / Server.spawnSelectionOverrides ahead of ChooseTechPoint,
+-- so if another mod sets those our selection would be bypassed entirely.
+local originalResetGame
+originalResetGame = Class_ReplaceMethod("NS2Gamerules", "ResetGame",
+	function(self)
+		DebugLog("ResetGame: state=%s teamSpawnOverride=%s spawnSelectionOverrides=%s alienCache=%s marineCache=%s",
+			tostring(self:GetGameState()),
+			tostring((Server.teamSpawnOverride ~= nil) and #Server.teamSpawnOverride or false),
+			tostring(Server.spawnSelectionOverrides ~= nil),
+			TPName(kSelectedAlienSpawn), TPName(kSelectedMarineSpawn))
+		return originalResetGame(self)
 	end
 )
 
@@ -126,9 +159,11 @@ local function OnSpawnSelectionMessage(client, message)
 		kSelectedAlienSpawn = tp
 		kSelectedMarineSpawn = PickMarineSpawn(tp)
 		GetGameInfoEntity():SetSelectedSpawn(tp:GetId())
+		DebugLog("pick ACCEPTED by %s: alien=%s marine=%s", ToString(player:GetName()), TPName(tp), TPName(kSelectedMarineSpawn))
 	else
 		-- Random / clear request (or an invalid id) - revert to vanilla selection.
 		ClearSelectedSpawns()
+		DebugLog("pick REJECTED/random: id=%s name=%s allowed=%s", tostring(message.techPointId), TPName(tp), tostring(tp and tp.GetTeamNumberAllowed and tp:GetTeamNumberAllowed()))
 	end
 
 end
@@ -159,3 +194,9 @@ end
 
 CreateServerAdminCommand("Console_sv_spawnselect", SetSpawnSelectEnabled,
 	"<true/false>, Enables or disables alien spawn selection (default enabled).")
+
+-- Temporary: toggle the diagnostic logging above.
+CreateServerAdminCommand("Console_sv_spawnselect_debug", function(client, arg)
+	kDebug = (arg == nil) and (not kDebug) or (arg == "true" or arg == "1")
+	Shared.Message("[SpawnSelector] debug logging " .. (kDebug and "ON" or "OFF"))
+end, "<true/false>, Toggles SpawnSelector diagnostic logging.")
