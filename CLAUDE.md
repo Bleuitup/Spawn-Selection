@@ -13,20 +13,6 @@ The underlying approach is adapted from the **NSL** plugin by **Dragon (xToken)*
 <https://github.com/xToken/NSL>. Files that borrow from it credit it in their header. `README.md`
 is the user/server-admin facing doc; this file is for development.
 
-## Running and testing
-
-- **You cannot run or test the game from a normal dev environment.** NS2 is a multiplayer game;
-  the mod is exercised on a real NS2 **dedicated server** (or a local listen server), typically by
-  publishing/refreshing the Steam Workshop item and loading it.
-- **Static check before pushing:** every Lua file must parse. With LuaJIT installed:
-  ```
-  for f in $(find lua -name '*.lua'); do luajit -bl "$f" /dev/null && echo "ok $f"; done
-  ```
-  This catches syntax errors only — not missing NS2 globals, which resolve only inside the engine.
-- **Diagnosing live issues:** add temporary logging behind a debug flag, prefixed so it's greppable
-  in the server log (e.g. `Shared.Message("[SpawnSelector] ...")`), have it run on the server, read
-  the pasted log, then strip the logging once fixed.
-
 ## Layout
 
 Mod files live at the repo root (standard NS2 layout). Load order is declared in
