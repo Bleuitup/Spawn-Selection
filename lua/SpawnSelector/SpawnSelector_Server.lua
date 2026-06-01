@@ -1,9 +1,9 @@
 -- SpawnSelector
 -- lua/SpawnSelector/SpawnSelector_Server.lua
 --
--- Server logic: the alien commander picks a starting tech point; the marines are
--- given a different (weighted-random) one. The picks are cached and applied when the
--- game's normal NS2Gamerules:ChooseTechPoint runs at round start.
+-- Server logic: the alien commander picks a starting tech point; the marines are given a
+-- random legal partner spawn for it. The pick is applied at round start via
+-- Server.teamSpawnOverride, the highest-priority spawn path in NS2Gamerules:ResetGame.
 --
 -- Adapted from the NSL plugin (with permission):
 -- https://github.com/xToken/NSL - lua/NSL/customspawns/server.lua - by Dragon
@@ -14,18 +14,6 @@ Script.Load("lua/SpawnSelector/SpawnSelector_Shared.lua")
 local kEnabled = true
 local kSelectedMarineSpawn
 local kSelectedAlienSpawn
-
--- Temporary diagnostic logging. Toggle with "sv_spawnselect_debug <true/false>".
--- All lines are prefixed with [SpawnSelector] so they are easy to grep in the server log.
-local kDebug = true
-local function DebugLog(...)
-	if kDebug then
-		Shared.Message("[SpawnSelector] " .. string.format(...))
-	end
-end
-local function TPName(tp)
-	return (tp and tp.GetLocationName and tp:GetLocationName()) or "nil"
-end
 
 local function ClearSelectedSpawns()
 	kSelectedMarineSpawn = nil
@@ -54,21 +42,6 @@ local function ApplyTeamSpawnOverride()
 		Server.teamSpawnOverride = nil
 	end
 end
-
--- Diagnostic: log whether something else is steering spawns when the round actually resets.
--- ResetGame uses Server.teamSpawnOverride / Server.spawnSelectionOverrides ahead of ChooseTechPoint,
--- so if another mod sets those our selection would be bypassed entirely.
-local originalResetGame
-originalResetGame = Class_ReplaceMethod("NS2Gamerules", "ResetGame",
-	function(self)
-		DebugLog("ResetGame: state=%s teamSpawnOverride=%s spawnSelectionOverrides=%s alienCache=%s marineCache=%s",
-			tostring(self:GetGameState()),
-			tostring((Server.teamSpawnOverride ~= nil) and #Server.teamSpawnOverride or false),
-			tostring(Server.spawnSelectionOverrides ~= nil),
-			TPName(kSelectedAlienSpawn), TPName(kSelectedMarineSpawn))
-		return originalResetGame(self)
-	end
-)
 
 -- Clear cached picks when a round ends so the next round starts fresh.
 local originalEndGame
@@ -171,11 +144,9 @@ local function OnSpawnSelectionMessage(client, message)
 		kSelectedMarineSpawn = PickMarineSpawn(tp)
 		ApplyTeamSpawnOverride()
 		GetGameInfoEntity():SetSelectedSpawn(tp:GetId())
-		DebugLog("pick ACCEPTED by %s: alien=%s marine=%s teamSpawnOverride=%s", ToString(player:GetName()), TPName(tp), TPName(kSelectedMarineSpawn), tostring(Server.teamSpawnOverride ~= nil))
 	else
 		-- Random / clear request (or an invalid id) - revert to vanilla selection.
 		ClearSelectedSpawns()
-		DebugLog("pick REJECTED/random: id=%s name=%s allowed=%s", tostring(message.techPointId), TPName(tp), tostring(tp and tp.GetTeamNumberAllowed and tp:GetTeamNumberAllowed()))
 	end
 
 end
@@ -206,9 +177,3 @@ end
 
 CreateServerAdminCommand("Console_sv_spawnselect", SetSpawnSelectEnabled,
 	"<true/false>, Enables or disables alien spawn selection (default enabled).")
-
--- Temporary: toggle the diagnostic logging above.
-CreateServerAdminCommand("Console_sv_spawnselect_debug", function(client, arg)
-	kDebug = (arg == nil) and (not kDebug) or (arg == "true" or arg == "1")
-	Shared.Message("[SpawnSelector] debug logging " .. (kDebug and "ON" or "OFF"))
-end, "<true/false>, Toggles SpawnSelector diagnostic logging.")
