@@ -62,21 +62,43 @@ end
 Class_Reload("GameInfo", networkVars)
 
 -- Pre-round freeze.
--- Vanilla freezes players (no movement, no view changes) only during kGameState.Countdown
--- (see Player:OnProcessMove, which keys off GetCountdownActive). We extend that freeze to the
--- preceding kGameState.PreGame so field players are rooted for the whole pre-round wait instead
--- of walking around / looking about while the spawn is being chosen. The commander is exempt so
--- they can still set up their base. This runs shared (client / predict / server) so movement
--- prediction stays in sync. Gated on the synced enabled flag so sv_spawnselect false fully reverts.
-local originalPlayerGetCountdownActive
-originalPlayerGetCountdownActive = Class_ReplaceMethod("Player", "GetCountdownActive",
-	function(self)
-		if self:GetIsOnPlayingTeam() and not self:GetIsCommander() then
-			local gameInfo = GetGameInfoEntity()
-			if gameInfo and gameInfo:GetSpawnSelectionEnabled() and gameInfo:GetState() == kGameState.PreGame then
-				return true
-			end
+-- Root field players in place during the pre-game wait (kGameState.PreGame) so nobody walks
+-- around or looks about while the alien commander is choosing the starting hive.
+--
+-- We deliberately do NOT reuse GetCountdownActive for this: that flag also drives the countdown
+-- zoom camera, the third-person body draw and the "Game is starting" text. Flipping it during
+-- PreGame would start that animation early - at the player's current spot, before vanilla
+-- teleports everyone to their spawns at the start of the real countdown. Instead we freeze
+-- movement + actions via GetCanControl (HandleButtons zeroes the move and strips inputs) and
+-- freeze the view via a no-op UpdateViewAngles. Commanders are exempt so they can still set up.
+-- Runs shared (client / predict / server) so movement prediction stays in sync. Gated on the
+-- synced enabled flag so sv_spawnselect false reverts fully to vanilla.
+local function GetIsPreGameFrozen(player)
+	if player:GetIsOnPlayingTeam() and not player:GetIsCommander() then
+		local gameInfo = GetGameInfoEntity()
+		if gameInfo and gameInfo:GetSpawnSelectionEnabled() and gameInfo:GetState() == kGameState.PreGame then
+			return true
 		end
-		return originalPlayerGetCountdownActive(self)
+	end
+	return false
+end
+
+local originalPlayerGetCanControl
+originalPlayerGetCanControl = Class_ReplaceMethod("Player", "GetCanControl",
+	function(self)
+		if GetIsPreGameFrozen(self) then
+			return false
+		end
+		return originalPlayerGetCanControl(self)
+	end
+)
+
+local originalPlayerUpdateViewAngles
+originalPlayerUpdateViewAngles = Class_ReplaceMethod("Player", "UpdateViewAngles",
+	function(self, input)
+		if GetIsPreGameFrozen(self) then
+			return
+		end
+		return originalPlayerUpdateViewAngles(self, input)
 	end
 )

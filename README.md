@@ -23,8 +23,9 @@ It also tightens up the pre-round so the choosing phase is orderly:
 - **Field players are frozen** in place once the teams are set and the game is about to
   start (the pre-game wait), so nobody wanders off or fidgets while the spawn is picked.
   Commanders are exempt and can still set up their base.
-- **Commanders can't leave the chair** until the game actually starts, preventing
-  accidental or last-second logouts during the pre-round.
+- **Commanders can't leave the chair during the final countdown**, preventing accidental
+  or last-second logouts right before the round begins. (They can still freely enter and
+  leave chairs while setting up earlier in the pre-game.)
 
 ## How to use it
 
