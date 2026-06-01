@@ -1,7 +1,7 @@
 -- SpawnSelector
 -- lua/SpawnSelector/SpawnSelector_Utility.lua
 --
--- Class_ReplaceMethod is vendored verbatim from the NSL plugin (with permission).
+-- Class_ReplaceMethod is vendored verbatim from the NSL plugin.
 -- Source: https://github.com/xToken/NSL - lua/NSL/nsl_utilities.lua - by Dragon
 -- It safely swaps a method on a class and all of its already-derived classes,
 -- returning the original so callers can chain to it.

@@ -2,7 +2,7 @@
 -- lua/SpawnSelector/GUISpawnSelectionMenu.lua
 --
 -- Alien commander UI for choosing the team's starting location.
--- Adapted from the NSL plugin (with permission):
+-- Adapted from the NSL plugin:
 -- https://github.com/xToken/NSL - lua/NSL/GUI/GUINSLSpawnSelectionMenu.lua - by Dragon
 
 class 'GUISpawnSelectionMenu' (GUIScript)

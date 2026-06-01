@@ -5,7 +5,7 @@
 -- random legal partner spawn for it. The pick is applied at round start via
 -- Server.teamSpawnOverride, the highest-priority spawn path in NS2Gamerules:ResetGame.
 --
--- Adapted from the NSL plugin (with permission):
+-- Adapted from the NSL plugin:
 -- https://github.com/xToken/NSL - lua/NSL/customspawns/server.lua - by Dragon
 
 Script.Load("lua/SpawnSelector/SpawnSelector_Utility.lua")

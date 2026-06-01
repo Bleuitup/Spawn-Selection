@@ -5,7 +5,7 @@
 -- fields the commander UI reads (whether selection is enabled, and the currently
 -- selected tech point). Loaded on both client and server.
 --
--- GameInfo extension pattern adapted from the NSL plugin (with permission):
+-- GameInfo extension pattern adapted from the NSL plugin:
 -- https://github.com/xToken/NSL - lua/NSL/gameinfo/shared.lua - by Dragon
 
 Script.Load("lua/SpawnSelector/SpawnSelector_Utility.lua")
