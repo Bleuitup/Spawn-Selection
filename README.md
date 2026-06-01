@@ -18,6 +18,14 @@ deliberate starting positions instead of the usual random spawns.
 - The selection is highlighted in green and syncs to the alien team so everyone can see
   the chosen spot.
 
+It also tightens up the pre-round so the choosing phase is orderly:
+
+- **Field players are frozen** in place once the teams are set and the game is about to
+  start (the pre-game wait), so nobody wanders off or fidgets while the spawn is picked.
+  Commanders are exempt and can still set up their base.
+- **Commanders can't leave the chair** until the game actually starts, preventing
+  accidental or last-second logouts during the pre-round.
+
 ## How to use it
 
 1. **Install the mod** on your server (subscribe via the Steam Workshop, or place it in
@@ -44,7 +52,8 @@ sv_spawnselect true     -- enable alien spawn selection (default)
 sv_spawnselect false    -- disable; spawns revert to vanilla random placement
 ```
 
-When disabled, the commander panel is hidden and the game uses its standard spawn logic.
+When disabled, the commander panel is hidden, the pre-round freeze and commander-logout
+lock are lifted, and the game uses its standard spawn logic.
 
 ## Credits
 

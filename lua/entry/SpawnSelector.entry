@@ -1,5 +1,6 @@
 modEntry = {
 	Client = "lua/SpawnSelector/SpawnSelector_Client.lua",
 	Server = "lua/SpawnSelector/SpawnSelector_Server.lua",
+	Predict = "lua/SpawnSelector/SpawnSelector_Predict.lua",
 	Priority = 5
 }

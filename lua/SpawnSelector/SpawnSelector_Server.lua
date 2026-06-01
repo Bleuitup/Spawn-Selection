@@ -87,6 +87,21 @@ local function PickMarineSpawn(alienTechPoint)
 
 end
 
+-- Block the commander from voluntarily leaving the chair before the game starts. The logout
+-- button, the Exit key, and the "logout" console command all route through OnCommandLogout, which
+-- checks GetCommanderLogoutAllowed(). A forced Eject() / disconnect calls Commander:Logout()
+-- directly and bypasses this gate, so server-side cleanup of a leaving commander still works.
+local originalGetCommanderLogoutAllowed = GetCommanderLogoutAllowed
+function GetCommanderLogoutAllowed()
+	if kEnabled then
+		local gamerules = GetGamerules()
+		if gamerules and gamerules:GetGameState() < kGameState.Started then
+			return false
+		end
+	end
+	return originalGetCommanderLogoutAllowed()
+end
+
 local function OnSpawnSelectionMessage(client, message)
 
 	if not kEnabled or not client or not message then
