@@ -61,22 +61,23 @@ end
 
 Class_Reload("GameInfo", networkVars)
 
--- Pre-round freeze.
--- Root field players in place during the pre-game wait (kGameState.PreGame) so nobody walks
--- around or looks about while the alien commander is choosing the starting hive.
+-- Countdown freeze.
+-- Lock players in place for the start-of-round countdown (kGameState.Countdown) - and only then,
+-- not during the brief PreGame that precedes it. Vanilla already freezes during the countdown
+-- (Player:OnProcessMove zeroes the move and skips UpdateViewAngles when GetCountdownActive), so we
+-- key our freeze off the Countdown game state directly to start exactly when the countdown does and
+-- to hold even if another mod disturbs vanilla's path.
 --
--- We deliberately do NOT reuse GetCountdownActive for this: that flag also drives the countdown
--- zoom camera, the third-person body draw and the "Game is starting" text. Flipping it during
--- PreGame would start that animation early - at the player's current spot, before vanilla
--- teleports everyone to their spawns at the start of the real countdown. Instead we freeze
--- movement + actions via GetCanControl (HandleButtons zeroes the move and strips inputs) and
--- freeze the view via a no-op UpdateViewAngles. Commanders are exempt so they can still set up.
--- Runs shared (client / predict / server) so movement prediction stays in sync. Gated on the
--- synced enabled flag so sv_spawnselect false reverts fully to vanilla.
-local function GetIsPreGameFrozen(player)
-	if player:GetIsOnPlayingTeam() and not player:GetIsCommander() then
+-- We deliberately do NOT reuse GetCountdownActive: that flag also drives the countdown zoom camera,
+-- the third-person body draw and the "Game is starting" text - keying off it would risk starting
+-- that animation early. Instead we freeze movement + actions via GetCanControl (HandleButtons
+-- zeroes the move and strips inputs) and freeze the view via a no-op UpdateViewAngles. Runs shared
+-- (client / predict / server) so movement prediction stays in sync. Gated on the synced enabled
+-- flag so sv_spawnselect false reverts fully to vanilla.
+local function GetIsCountdownFrozen(player)
+	if player:GetIsOnPlayingTeam() then
 		local gameInfo = GetGameInfoEntity()
-		if gameInfo and gameInfo:GetSpawnSelectionEnabled() and gameInfo:GetState() == kGameState.PreGame then
+		if gameInfo and gameInfo:GetSpawnSelectionEnabled() and gameInfo:GetState() == kGameState.Countdown then
 			return true
 		end
 	end
@@ -86,7 +87,7 @@ end
 local originalPlayerGetCanControl
 originalPlayerGetCanControl = Class_ReplaceMethod("Player", "GetCanControl",
 	function(self)
-		if GetIsPreGameFrozen(self) then
+		if GetIsCountdownFrozen(self) then
 			return false
 		end
 		return originalPlayerGetCanControl(self)
@@ -96,7 +97,7 @@ originalPlayerGetCanControl = Class_ReplaceMethod("Player", "GetCanControl",
 local originalPlayerUpdateViewAngles
 originalPlayerUpdateViewAngles = Class_ReplaceMethod("Player", "UpdateViewAngles",
 	function(self, input)
-		if GetIsPreGameFrozen(self) then
+		if GetIsCountdownFrozen(self) then
 			return
 		end
 		return originalPlayerUpdateViewAngles(self, input)

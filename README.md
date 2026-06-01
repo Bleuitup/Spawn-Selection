@@ -19,13 +19,12 @@ deliberate starting positions instead of the usual random spawns.
 - The selection is highlighted in green and syncs to the alien team so everyone can see
   the chosen spot.
 
-It also tightens up the pre-round so the choosing phase is orderly:
+It also tightens up the start of the round:
 
-- **Field players are frozen** in place once the teams are set and the game is about to
-  start (the pre-game wait), so nobody wanders off or fidgets while the spawn is picked.
-  Commanders are exempt and can still set up their base.
-- **Commanders can't leave the chair during the final countdown**, preventing accidental
-  or last-second logouts right before the round begins. (They can still freely enter and
+- **Players are frozen** in place during the start-of-round countdown, so nobody drifts
+  out of position as the round begins.
+- **Commanders can't leave the chair during the countdown**, preventing accidental or
+  last-second logouts right before the round begins. (They can still freely enter and
   leave chairs while setting up earlier in the pre-game.)
 
 ## How to use it
