@@ -1,0 +1,5 @@
+modEntry = {
+	Client = "lua/SpawnSelector/SpawnSelector_Client.lua",
+	Server = "lua/SpawnSelector/SpawnSelector_Server.lua",
+	Priority = 5
+}
