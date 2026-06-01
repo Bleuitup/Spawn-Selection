@@ -13,6 +13,13 @@ Script.Load("lua/SpawnSelector/SpawnSelector_Utility.lua")
 -- Client -> Server: the alien commander's chosen tech point (-1 means "random / clear").
 Shared.RegisterNetworkMessage("SpawnSelector_SelectSpawn", { techPointId = "entityid" })
 
+-- Vanilla only defines TechPoint:GetTeamNumberAllowed() inside an "if Server then" block,
+-- so the method does not exist on the client even though the allowedTeamNumber networkVar is
+-- synced. Define a shared getter so the commander UI can read it client-side. (NSL does the same.)
+function TechPoint:GetTeamNumberAllowed()
+	return self.allowedTeamNumber
+end
+
 local networkVars =
 {
 	spawnSelectionEnabled = "boolean",
