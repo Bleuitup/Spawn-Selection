@@ -9,6 +9,7 @@
 
 Script.Load("lua/HiveSpawnSelector/HiveSpawnSelector_Utility.lua")
 Script.Load("lua/HiveSpawnSelector/HiveSpawnSelector_Shared.lua")
+Script.Load("lua/HiveSpawnSelector/HiveSpawnSelector_MinimapPins.lua")
 
 AddClientUIScriptForClass("AlienCommander", "HiveSpawnSelector/GUIHiveSpawnSelectorMenu")
 
@@ -76,6 +77,11 @@ local function OnAnnounceMessage(message)
 	table.insert(queuedChatMessages, 0)
 
 	StartSoundEffect(player:GetChatSound())
+
+	-- Same data as the chat text, pinned on the minimap - see HiveSpawnSelector_MinimapPins.lua.
+	if HiveSpawnSelector_ShowPickPins then
+		HiveSpawnSelector_ShowPickPins(message.techPointId, message.marineSpawnIds)
+	end
 
 end
 

@@ -16,9 +16,13 @@ Shared.RegisterNetworkMessage("HiveSpawnSelector_SelectSpawn", { techPointId = "
 -- Server -> alien team: relays the commander's pick as a team chat message (-1 means the pick
 -- was cleared / random). marineSpawnNames is a comma-separated list of every legal marine spawn
 -- for the pick (not just the one actually chosen - see AnnounceSelection), empty when not
--- applicable. See HiveSpawnSelector_Server.lua's AnnounceSelection and HiveSpawnSelector_Client.lua's
--- OnAnnounceMessage.
-Shared.RegisterNetworkMessage("HiveSpawnSelector_Announce", { techPointId = "entityid", marineSpawnNames = "string (256)" })
+-- applicable. marineSpawnIds is the same candidate list as comma-separated entity ids, used to
+-- pin them on the minimap (see HiveSpawnSelector_MinimapPins.lua) - kept as a separate string field
+-- rather than folded into marineSpawnNames since the two are consumed differently (one displayed,
+-- one resolved back to entities). See HiveSpawnSelector_Server.lua's AnnounceSelection and
+-- HiveSpawnSelector_Client.lua's OnAnnounceMessage.
+Shared.RegisterNetworkMessage("HiveSpawnSelector_Announce",
+	{ techPointId = "entityid", marineSpawnNames = "string (256)", marineSpawnIds = "string (256)" })
 
 -- Vanilla only defines TechPoint:GetTeamNumberAllowed() inside an "if Server then" block,
 -- so the method does not exist on the client even though the allowedTeamNumber networkVar is

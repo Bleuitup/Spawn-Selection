@@ -27,6 +27,10 @@ deliberate starting positions instead of the usual random spawns.
   spawn. The marine part lists every legal marine spawn for the pick, not which one actually won
   the random draw. By default this goes to the whole team; see **Server admin** below to send it
   to the commander only instead.
+- Alongside that message, the picked hive and every legal marine spawn candidate for it are
+  **pinned on the minimap** — the hive in alien orange, the marine candidates in marine blue —
+  so the pick and its possible marine spawns are visible at a glance, not just readable in chat.
+  The pins disappear the moment the round actually starts.
 
 It also tightens up the start of the round:
 

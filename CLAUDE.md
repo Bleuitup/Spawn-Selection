@@ -50,6 +50,8 @@ before publishing.
   loading).
 - `lua/HiveSpawnSelector/HiveSpawnSelector_Client.lua` — attaches the UI to `AlienCommander`, and renders
   the alien-team pick announcement as a chat message for every alien player.
+- `lua/HiveSpawnSelector/HiveSpawnSelector_MinimapPins.lua` — client only. Pins the picked hive and
+  every legal marine candidate on the minimap alongside the chat announcement.
 - `lua/HiveSpawnSelector/GUIHiveSpawnSelectorMenu.lua` — the "SELECT STARTING LOCATION" panel.
 - `lua/HiveSpawnSelector/HiveSpawnSelector_Predict.lua` — loads shared defs into the prediction VM.
 
@@ -126,6 +128,54 @@ before publishing.
   if this is revisited — genuine inline multi-color text would require hand-built GUI text items
   replacing the vanilla chat feed entirely for this message (positioning, word-wrap, fade timers,
   stacking), a much bigger undertaking than this mod currently needs.
+
+## Minimap pins (checked against devnull's "Fair Start" mod, Workshop 2569595369)
+
+The alien team's picked hive and every legal marine candidate for it are pinned on the minimap the
+moment the pick is announced (`HiveSpawnSelector_MinimapPins.lua`, client only) - the same
+"possible locations" idea as the chat message (see below), made visual. The user asked for this
+after pointing at devnull's **Fair Start** mod, which pins a chair/hive icon pair at round start;
+we checked its actual source (`lua/Devnull_FS/GUIMinimap.lua` in the local Workshop cache) rather
+than guessing at the technique.
+
+- **What Fair Start actually does, for reference:** on `kGameState.Countdown` it reads both teams'
+  resolved `GetInitialTechPoint()` positions, broadcasts them to every client, and pins two
+  `GUIItem`s (its own `FairStartMarine.dds` / `FairStartAlien.dds` textures) as children of
+  `GUIMinimap.self.minimap`, positioned via `GUIMinimap:PlotToMap(x, z)`. Visible through the
+  countdown plus the first 30s of `Started`. It also fully replaces `lua/TeamMessenger.lua` for an
+  unrelated text-message feature we did not need or take.
+- **We reuse the positioning technique, not the art or the text-message replacement.** The user
+  explicitly chose vanilla-sourced icons over shipping devnull's actual `.dds` files, to avoid
+  depending on / needing to credit another mod's assets.
+- **No new art asset needed at all.** `ui/minimap_blip.dds` (256x256, confirmed by decompressing
+  it) is vanilla's own minimap-blip atlas, laid out in 32x32 cells addressed by `BuildClassToGrid()`
+  (`NS2Utility.lua`) + `GetSpriteGridByClass()` + `GUIGetSprite()` - the exact same globals
+  `GUIMinimap.lua` itself calls for every built structure's blip. `CommandStation` is grid cell
+  `{1,4}`, `Hive` is `{2,6}`; both are plain white/grey top-down silhouettes meant to be tinted at
+  runtime via `SetColor`, which is what we do (`kTeamColors[kMinimapBlipTeam.Alien/.Marine]`'s own
+  values, copied rather than reached into since those are `local` to `GUIMinimap.lua`).
+- **Positioned once per pick, not recomputed every frame.** A `GUIItem` parented to `self.minimap`
+  inherits the minimap's own pan/zoom transform automatically, the same way vanilla's own static
+  structure blips work - so `HiveSpawnSelector_ShowPickPins` only calls `:PlotToMap` when a new
+  pick comes in, not on a per-frame update.
+- **A fixed pool of 8 marine-candidate `GUIItem`s**, created once in a `GUIMinimap:Initialize` post-hook
+  and shown/hidden/repositioned per pick, rather than creating/destroying items per pick - CustomSpawns
+  configs and vanilla `spawn_selection_override` pairs both stay well under 8 candidates in practice.
+- **Hidden the instant `kGameState.Started` begins**, via a `GUIMinimap:Update` post-hook - no fixed
+  pre-round duration (unlike Fair Start's 30s-into-Started window), because the pick itself can
+  happen well before the countdown even starts depending on the server's ready-up setup, so there is
+  no fixed window to size a duration against. Settled with the user (2026-09-13) over a shorter
+  alternative (hide at `Started` vs. hide ~10-15s into it) - explicit choice, don't revert without asking.
+- **Carried over the network as `marineSpawnIds`**, a new field on `HiveSpawnSelector_Announce`
+  (comma-separated entity ids, mirroring the existing `marineSpawnNames` string convention) -
+  `AnnounceSelection` in `HiveSpawnSelector_Server.lua` builds both from the same
+  `marineCandidates` list it already had. Same "report the full candidate pool, not the one
+  actually chosen" rule applies to the pins as to the chat text - do not simplify this to only
+  pinning `kSelectedMarineSpawn`.
+- **Nothing has been run in game.** This is new surface (no prior code touches `GUIMinimap` at
+  all); only `luac -p` (Lua 5.4 syntax only) has checked it. Verify in-game before publishing:
+  pins appear at pick time in the right locations, tinted correctly, disappear at round start, and
+  a re-pick (commander changes their mind) repositions cleanly rather than leaving stale pins.
 
 ## Optional CustomSpawns integration (this mod is still standalone)
 
