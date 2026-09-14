@@ -48,6 +48,49 @@ local kPinHalfSize = kPinSize * -0.5
 -- configs and vanilla spawn_selection_override pairs both stay well under this in practice).
 local kMaxMarinePins = 8
 
+-- Adjacent candidate rooms are common (e.g. ns2_docking's Generator pairs with both Terminal and
+-- Cafeteria, which sit right next to each other) - two same-color, same-icon pins landing on top of
+-- each other on the minimap would just read as one, defeating the point. Nudge any that land closer
+-- than a pin's own width apart so each stays individually visible. Not a real physics solver, just a
+-- few relaxation passes - there are at most kMaxMarinePins points, so this is cheap.
+local kMinPinSeparation = kPinSize.x * 0.95
+
+local function DeclutterPositions(positions)
+	local n = #positions
+	for pass = 1, 6 do
+		local moved = false
+		for i = 1, n do
+			for j = i + 1, n do
+				local a = positions[i]
+				local b = positions[j]
+				local dx = b.x - a.x
+				local dy = b.y - a.y
+				local dist = math.sqrt(dx * dx + dy * dy)
+				if dist < kMinPinSeparation then
+					moved = true
+					local pushX, pushY
+					if dist < 0.001 then
+						-- Exactly coincident (same room, distinct tech points): pick a deterministic
+						-- direction from the pair's own indices so they don't fight each other.
+						local angle = (i + j) * (2 * math.pi / 7)
+						pushX, pushY = math.cos(angle), math.sin(angle)
+					else
+						pushX, pushY = dx / dist, dy / dist
+					end
+					local shortfall = (kMinPinSeparation - dist) / 2
+					a.x = a.x - pushX * shortfall
+					a.y = a.y - pushY * shortfall
+					b.x = b.x + pushX * shortfall
+					b.y = b.y + pushY * shortfall
+				end
+			end
+		end
+		if not moved then
+			break
+		end
+	end
+end
+
 local function CreatePin(minimap, texCoords, color)
 	local item = GetGUIManager():CreateGraphicItem()
 	item:SetTexture(kIconFileName)
@@ -131,27 +174,34 @@ function HiveSpawnSelector_ShowPickPins(alienTechPointId, marineIdsCsv)
 	hivePin:SetPosition(Vector(minimapInstance:PlotToMap(origin.x, origin.z)) + kPinHalfSize)
 	hivePin:SetIsVisible(true)
 
-	local shown = 0
+	-- Two passes: resolve every candidate's raw minimap position first, then declutter the whole
+	-- set together (a pin can need to move because of a candidate discovered later in the id list),
+	-- and only then write positions to the actual GUIItems.
+	local positions = { }
+	local resolvedPins = { }
 	if marineIdsCsv and marineIdsCsv ~= "" then
 		for idStr in string.gmatch(marineIdsCsv, "[^,]+") do
-			if shown >= kMaxMarinePins then
+			if #resolvedPins >= kMaxMarinePins then
 				break
 			end
-			shown = shown + 1
 
-			local pin = marinePins[shown]
 			local tp = Shared.GetEntity(tonumber(idStr))
 			if tp and tp:isa("TechPoint") then
 				local pos = tp:GetOrigin()
-				pin:SetPosition(Vector(minimapInstance:PlotToMap(pos.x, pos.z)) + kPinHalfSize)
-				pin:SetIsVisible(true)
-			else
-				pin:SetIsVisible(false)
+				table.insert(positions, Vector(minimapInstance:PlotToMap(pos.x, pos.z)))
+				table.insert(resolvedPins, marinePins[#resolvedPins + 1])
 			end
 		end
 	end
 
-	for i = shown + 1, kMaxMarinePins do
+	DeclutterPositions(positions)
+
+	for i = 1, #resolvedPins do
+		resolvedPins[i]:SetPosition(positions[i] + kPinHalfSize)
+		resolvedPins[i]:SetIsVisible(true)
+	end
+
+	for i = #resolvedPins + 1, kMaxMarinePins do
 		marinePins[i]:SetIsVisible(false)
 	end
 

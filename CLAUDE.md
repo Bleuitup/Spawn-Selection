@@ -176,6 +176,19 @@ than guessing at the technique.
   all); only `luac -p` (Lua 5.4 syntax only) has checked it. Verify in-game before publishing:
   pins appear at pick time in the right locations, tinted correctly, disappear at round start, and
   a re-pick (commander changes their mind) repositions cleanly rather than leaving stale pins.
+- **Adjacent candidates are decluttered, not just multi-pin-capable.** The user caught this:
+  `ns2_docking`'s Generator pairs with both Terminal and Cafeteria, which sit right next to each
+  other, so two same-color chair pins would land almost on top of each other and read as one -
+  defeating the point for exactly the multi-candidate case this feature exists for. Confirmed the
+  general shape of the problem is real by checking a CustomSpawns-style config directly (a
+  different, unrelated mod's docking_mmpg data: `Generator -> enemyspawns: ["Cafeteria",
+  "Terminal"]`), not just reasoned about in the abstract. `HiveSpawnSelector_ShowPickPins` now
+  resolves every candidate's minimap position first, runs a small iterative separation pass
+  (`DeclutterPositions`, a handful of relaxation passes over at most 8 points, not a real physics
+  solver) pushing any pair closer than one pin-width apart away from each other, and only then
+  writes final positions to the GUIItems. Two candidates in the exact same room (distance 0) get a
+  deterministic angular split from their own list indices rather than fighting for the same nudge
+  direction every frame.
 
 ## Optional CustomSpawns integration (this mod is still standalone)
 
