@@ -288,23 +288,14 @@ end
 -- one actually chosen - the message names every legal marine spawn rather than spoiling which one
 -- won the random pick. Adapted from NSL's NSLSendTeamMessage(kTeam2Index, ...) calls in
 -- lua/NSL/customspawns/server.lua, without NSL's localization/message-id machinery.
---
--- marineSpawnIds mirrors marineSpawnNames as entity ids rather than display names, so
--- HiveSpawnSelector_MinimapPins.lua (client) can resolve each candidate back to a TechPoint and
--- pin it - same "report the full candidate pool, not the one actually chosen" rule applies to the
--- pins as to the chat text.
 local function AnnounceSelection(techPointId, commanderClient, marineCandidates)
 	local marineSpawnNames = ""
-	local marineSpawnIds = ""
 	if marineCandidates and #marineCandidates > 0 then
 		local names = { }
-		local ids = { }
 		for _, tp in ipairs(marineCandidates) do
 			table.insert(names, tp:GetLocationName())
-			table.insert(ids, tostring(tp:GetId()))
 		end
 		marineSpawnNames = table.concat(names, ",")
-		marineSpawnIds = table.concat(ids, ",")
 	end
 
 	if kConfig.AnnounceToWholeTeam then
@@ -313,12 +304,12 @@ local function AnnounceSelection(techPointId, commanderClient, marineCandidates)
 			local client = Server.GetOwner(player)
 			if client then
 				Server.SendNetworkMessage(client, "HiveSpawnSelector_Announce",
-					{ techPointId = techPointId, marineSpawnNames = marineSpawnNames, marineSpawnIds = marineSpawnIds }, true)
+					{ techPointId = techPointId, marineSpawnNames = marineSpawnNames }, true)
 			end
 		end
 	elseif commanderClient then
 		Server.SendNetworkMessage(commanderClient, "HiveSpawnSelector_Announce",
-			{ techPointId = techPointId, marineSpawnNames = marineSpawnNames, marineSpawnIds = marineSpawnIds }, true)
+			{ techPointId = techPointId, marineSpawnNames = marineSpawnNames }, true)
 	end
 end
 
