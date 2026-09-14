@@ -209,6 +209,18 @@ Each of these looks like an oversight in review and is not. Confirmed by the mai
   Shine's CustomSpawns plugin.** A full Shine-extension conversion was tried and reverted because
   it was harder to debug than the standalone form — see "Optional CustomSpawns integration" above
   for how the integration works without that conversion. Don't propose redoing it.
+- **Do not pin the picked hive / marine candidates on the minimap.** Built and shipped briefly
+  (`HiveSpawnSelector_MinimapPins.lua`, commits `eb4ad3d`/`c94c093`), then reverted (`bd96080`)
+  before ever being tested in game. Reason: during PreGame the marine team already has a live
+  CommandStation, and the minimap already renders real structure blips using vanilla's own
+  `CommandStation`/`Hive` icons and team colors — the exact same ones a temporary candidate pin
+  would have to use to look consistent. A player has no way to tell "this is an actual built
+  structure" from "this is a suggestion for where you might spawn." Checked against devnull's
+  "Fair Start" mod (Workshop `2569595369`) for the positioning technique first, and compared
+  vanilla's `minimap_blip.dds` blips against `buildmenu.dds`'s tech-tree icons for legibility at
+  pin scale — both real investigation, not guessing — but the confusability problem applies to any
+  icon choice, not just the one picked. If this is revisited, it needs a way to read as "proposal,"
+  not "existing" (distinct from every real structure blip) at a glance, not just a nicer icon.
 
 ## Conventions
 
