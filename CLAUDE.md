@@ -51,6 +51,8 @@ before publishing.
 - `lua/HiveSpawnSelector/HiveSpawnSelector_Client.lua` — attaches the UI to `AlienCommander`, and renders
   the alien-team pick announcement as a chat message for every alien player.
 - `lua/HiveSpawnSelector/GUIHiveSpawnSelectorMenu.lua` — the "SELECT STARTING LOCATION" panel.
+- `lua/HiveSpawnSelector/GUIHiveSpawnSelectorBanner.lua` — the pregame-only readout of the pick,
+  under the HUD top bar, shown to the alien team.
 - `lua/HiveSpawnSelector/HiveSpawnSelector_Predict.lua` — loads shared defs into the prediction VM.
 
 (All four paths above are relative to `source/`, e.g. the first is really
@@ -80,11 +82,21 @@ before publishing.
 - `Class_ReplaceMethod(class, name, fn)` returns the original for chaining and also replaces it on
   already-derived classes. Vanilla `TechPoint:GetTeamNumberAllowed()` is server-only — the shared
   getter in `HiveSpawnSelector_Shared.lua` exists so client UI can call it.
-- **The alien-team pick announcement is a real chat message, not a UI-only sync.** The
-  `spawnSelected` `GameInfo` field only reaches the commander's own client (it drives the
-  commander-only picker UI, attached via `AddClientUIScriptForClass("AlienCommander", ...)`), so
-  it can't be used to notify the rest of the team. `HiveSpawnSelector_Server.lua`'s
-  `AnnounceSelection` instead sends a dedicated `HiveSpawnSelector_Announce` message directly to
+- **`GameInfo` reaches every client, always — the fields this mod adds to it are not
+  commander-only.** `GameInfo:OnCreate` calls `SetPropagate(Entity.Propagate_Always)`, and the
+  vanilla file says outright that it is where UWE put data that must reach everyone *because*
+  `TeamInfo`/Team entities only propagate to their own team (`ns2/lua/GameInfo.lua`). What is
+  commander-only is the **picker UI script** (`AddClientUIScriptForClass("AlienCommander", ...)`),
+  not the data behind it. An earlier version of this file claimed the opposite; it was wrong, and
+  the mistake is worth knowing about because it makes GameInfo the right home for anything that
+  must survive a player joining, switching teams or reconnecting *after* a pick was made — none of
+  which a one-shot network message covers.
+- **The alien-team pick announcement is a real chat message, not a UI-only sync** — but for
+  audience and timing reasons, not networking ones. A chat line is a *notification*: it fires once,
+  at the moment of the pick, and honours `kConfig.AnnounceToWholeTeam`. GameInfo state is passive
+  and unconditional, which is why the pregame banner (below) reads GameInfo while the announcement
+  stays a message. `HiveSpawnSelector_Server.lua`'s
+  `AnnounceSelection` sends a dedicated `HiveSpawnSelector_Announce` message directly to
   every player on `kTeam2Index` (via `GetEntitiesForTeam("Player", kTeam2Index)` +
   `Server.GetOwner`), and `HiveSpawnSelector_Client.lua` renders it by hooking the global
   `ChatUI_GetMessages()` and injecting a message in vanilla's `chatMessages` shape (color, header,
@@ -113,6 +125,26 @@ before publishing.
   where marines start, which is the opposite of the intended effect on servers where the
   round begins right after the pick and the announcement is otherwise the only new information
   either team gets before it does.
+- **The pregame banner (`GUIHiveSpawnSelectorBanner.lua`) hangs off the HUD top bar and is driven
+  by `GameInfo`, not by the announce message.** It shows `STARTING HIVE - <name>` plus the marine
+  candidate line while the game state is `NotStarted`/`WarmUp`/`PreGame`/`Countdown`, and vanishes
+  for every other state — so it is gone the instant the round starts. Three things are deliberate:
+  - **It reads `GameInfo`, so latecomers are covered.** `spawnSelected` and the new
+    `marineSpawnCandidates` field are propagated to everyone (see the GameInfo note above), so
+    someone who joined, switched to aliens or reconnected after the pick still sees it. Reading the
+    retained announce message instead would silently show nothing for exactly those players.
+  - **It is registered with `AddClientUIScriptForTeam(kTeam2Index, ...)`, not for a class.**
+    ClientUI then creates and destroys it on team change, so marines never have the script at all
+    and the script itself never has to ask "whose team am I on" for the create/destroy case.
+  - **`announceToWholeTeam` is on `GameInfo` purely so this banner can honour it.** The chat
+    message enforces the commander-only mode server-side by simply not sending — a state-driven
+    banner has no equivalent, so the flag has to be on the wire. Do not "simplify" this away.
+  - Position comes from `ClientUI.GetScript("Hud2/topBar/GUIHudTopBarForLocalTeam")` and
+    `GetScreenPosition(0.5, 1)` — measured, not hardcoded, because the bar's height varies with the
+    team's counters and the player's HUD scale. It returns nil for anyone who disabled the top bar
+    via the `topbar_a` advanced option, hence `kFallbackY`. Note the scoreboard **hides** the top
+    bar while it is open (`SetIsHiddenOverride`), so the banner and an open scoreboard are never
+    both on screen; that is vanilla behavior, not a bug here.
 - **Only the `[Hive Spawn Selector]` tag is colored (magenta); the message body is plain white,
   and it's one line, not two.** A team-colored two-line version (alien orange hive line, marine
   light blue spawn line) was built and shipped briefly, then reverted as too cluttered — don't
@@ -221,6 +253,8 @@ Each of these looks like an oversight in review and is not. Confirmed by the mai
   pin scale — both real investigation, not guessing — but the confusability problem applies to any
   icon choice, not just the one picked. If this is revisited, it needs a way to read as "proposal,"
   not "existing" (distinct from every real structure blip) at a glance, not just a nicer icon.
+  **The pregame banner is the answer that was shipped instead** — text under the HUD top bar is
+  unambiguously a UI element, so it cannot be misread as a structure standing in the world.
 
 ## Conventions
 

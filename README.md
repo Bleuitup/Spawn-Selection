@@ -27,6 +27,10 @@ deliberate starting positions instead of the usual random spawns.
   spawn. The marine part lists every legal marine spawn for the pick, not which one actually won
   the random draw. By default this goes to the whole team; see **Server admin** below to send it
   to the commander only instead.
+- Until the round starts, the pick also stays on screen as a small banner under the HUD top bar,
+  so anyone who missed the chat message — including players who joined or switched to aliens after
+  the pick was made — can still see where the team is starting. It disappears the moment the round
+  begins, and it follows the same audience rule as the chat message above.
 
 It also tightens up the start of the round:
 
@@ -91,8 +95,8 @@ automatically the first time the mod runs) and set:
 ```
 
 This sends the announcement to the picking commander only — nobody else on the team sees it in
-chat. Everything else (the picker UI, the green highlight, the actual spawn placement) is
-unaffected either way. This setting is read once per map load, so a map change or server restart
+chat, and the pregame banner is likewise shown to the commander alone. Everything else (the picker
+UI, the green highlight, the actual spawn placement) is unaffected either way. This setting is read once per map load, so a map change or server restart
 is needed after editing it.
 
 ## Compatibility

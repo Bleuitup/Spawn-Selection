@@ -60,6 +60,35 @@ local function ClearSelectedSpawns()
 	local gameInfo = GetGameInfoEntity()
 	if gameInfo then
 		gameInfo:SetSelectedSpawn(Entity.invalidId)
+		gameInfo:SetMarineSpawnCandidates("")
+	end
+end
+
+-- Comma-separated display-case location names of a candidate list, in the same shape the
+-- legalAlienSpawns GameInfo field already uses. Feeds both the announce chat message and the
+-- GameInfo state the pregame banner reads - the two must never disagree, which is why they share
+-- this one builder rather than each formatting their own.
+local function BuildSpawnNameList(techPoints)
+	if not techPoints or #techPoints == 0 then
+		return ""
+	end
+	local names = { }
+	for _, tp in ipairs(techPoints) do
+		table.insert(names, tp:GetLocationName())
+	end
+	return table.concat(names, ",")
+end
+
+-- Publish the current pick as GameInfo state. GameInfo is Propagate_Always (see GameInfo:OnCreate
+-- in ns2/lua/GameInfo.lua - it is deliberately the place UWE put data that must reach every
+-- client, since Team entities only propagate to their own team), so unlike the one-shot announce
+-- chat message this reaches players who joined, switched teams or reconnected after the pick was
+-- made. That is what lets GUIHiveSpawnSelectorBanner stay correct for latecomers.
+local function PublishSelection(techPointId, marineSpawnNames)
+	local gameInfo = GetGameInfoEntity()
+	if gameInfo then
+		gameInfo:SetSelectedSpawn(techPointId)
+		gameInfo:SetMarineSpawnCandidates(marineSpawnNames)
 	end
 end
 
@@ -249,6 +278,17 @@ local function SyncLegalAlienSpawns()
 	gameInfo:SetLegalAlienSpawns(table.concat(legalNames, ","))
 end
 
+-- Mirror the announce-audience config onto GameInfo so the pregame banner can honour it client
+-- side. Done from ResetGame rather than at file load because the GameInfo entity does not exist
+-- yet when this file's top level runs. The config itself is read once at load and never re-read
+-- (see kConfig), so this only ever republishes the same value.
+local function SyncAnnounceAudience()
+	local gameInfo = GetGameInfoEntity()
+	if gameInfo then
+		gameInfo:SetAnnounceToWholeTeam(kConfig.AnnounceToWholeTeam == true)
+	end
+end
+
 -- EnsureShineHooksRegistered must run BEFORE the real ResetGame logic, since that's what actually
 -- calls ChooseTechPoint (and so Shine.Hook.Call("PreChooseTechPoint", ...)) for this round -
 -- SyncLegalAlienSpawns must run AFTER it, since that's what gives CustomSpawns a chance to parse
@@ -259,6 +299,7 @@ originalResetGame = Class_ReplaceMethod("NS2Gamerules", "ResetGame",
 		EnsureShineHooksRegistered()
 		originalResetGame(self)
 		SyncLegalAlienSpawns()
+		SyncAnnounceAudience()
 	end
 )
 
@@ -281,22 +322,17 @@ end
 
 -- Relays the commander's pick as a chat message (client.lua renders it), e.g. "Your commander
 -- has selected Reception as your spawn. Marines will spawn in either Cargo, Warehouse." Pass
--- Entity.invalidId for the random/cleared case (marineCandidates is meaningless then, pass nil),
+-- Entity.invalidId for the random/cleared case (marineSpawnNames is meaningless then, pass nil),
 -- and the picking commander's own client so the commander-only mode
--- (kConfig.AnnounceToWholeTeam == false) has someone to send it to. marineCandidates is the full
--- candidate list PickMarineSpawnFromCustomSpawns/PickMarineSpawnVanilla drew from, NOT just the
--- one actually chosen - the message names every legal marine spawn rather than spoiling which one
--- won the random pick. Adapted from NSL's NSLSendTeamMessage(kTeam2Index, ...) calls in
+-- (kConfig.AnnounceToWholeTeam == false) has someone to send it to. marineSpawnNames comes from
+-- BuildSpawnNameList over the full candidate list PickMarineSpawnFromCustomSpawns/
+-- PickMarineSpawnVanilla drew from, NOT just the one actually chosen - the message names every
+-- legal marine spawn rather than spoiling which one won the random pick. The caller passes the
+-- same string to PublishSelection so the banner and the chat line can never disagree.
+-- Adapted from NSL's NSLSendTeamMessage(kTeam2Index, ...) calls in
 -- lua/NSL/customspawns/server.lua, without NSL's localization/message-id machinery.
-local function AnnounceSelection(techPointId, commanderClient, marineCandidates)
-	local marineSpawnNames = ""
-	if marineCandidates and #marineCandidates > 0 then
-		local names = { }
-		for _, tp in ipairs(marineCandidates) do
-			table.insert(names, tp:GetLocationName())
-		end
-		marineSpawnNames = table.concat(names, ",")
-	end
+local function AnnounceSelection(techPointId, commanderClient, marineSpawnNames)
+	marineSpawnNames = marineSpawnNames or ""
 
 	if kConfig.AnnounceToWholeTeam then
 		local players = GetEntitiesForTeam("Player", kTeam2Index)
@@ -355,11 +391,9 @@ local function OnSpawnSelectionMessage(client, message)
 			kSelectedMarineSpawn = marineTechPoint
 			kUsingCustomSpawnsOverride = true
 			Server.teamSpawnOverride = nil
-			local gameInfo = GetGameInfoEntity()
-			if gameInfo then
-				gameInfo:SetSelectedSpawn(tp:GetId())
-			end
-			AnnounceSelection(tp:GetId(), client, marineCandidates)
+			local marineSpawnNames = BuildSpawnNameList(marineCandidates)
+			PublishSelection(tp:GetId(), marineSpawnNames)
+			AnnounceSelection(tp:GetId(), client, marineSpawnNames)
 		else
 			-- Not alien-legal under CustomSpawns, or no legal marine partner: do not show a
 			-- choice we would not honour.
@@ -384,11 +418,9 @@ local function OnSpawnSelectionMessage(client, message)
 		kSelectedMarineSpawn = marineTechPoint
 		kUsingCustomSpawnsOverride = false
 		ApplyTeamSpawnOverride()
-		local gameInfo = GetGameInfoEntity()
-		if gameInfo then
-			gameInfo:SetSelectedSpawn(tp:GetId())
-		end
-		AnnounceSelection(tp:GetId(), client, marineCandidates)
+		local marineSpawnNames = BuildSpawnNameList(marineCandidates)
+		PublishSelection(tp:GetId(), marineSpawnNames)
+		AnnounceSelection(tp:GetId(), client, marineSpawnNames)
 	else
 		-- Random / clear request, an invalid id, or a pick we cannot pair a marine spawn with -
 		-- revert to vanilla selection rather than showing a choice we would not honour.

@@ -12,6 +12,12 @@ Script.Load("lua/HiveSpawnSelector/HiveSpawnSelector_Shared.lua")
 
 AddClientUIScriptForClass("AlienCommander", "HiveSpawnSelector/GUIHiveSpawnSelectorMenu")
 
+-- The pregame banner under the HUD top bar. Registered for the alien team rather than for a class,
+-- so ClientUI creates and destroys it on team change for us - the script itself then only has to
+-- decide "is there a pick worth showing right now", not "who am I". Marines are never given it at
+-- all, matching the audience of the chat announcement below.
+AddClientUIScriptForTeam(kTeam2Index, "HiveSpawnSelector/GUIHiveSpawnSelectorBanner")
+
 -- Only the "[Hive Spawn Selector]" tag is magenta, unmistakable against the usual chat colors
 -- (this used to be a dark, easy-to-miss blue-grey, 0.28, 0.36, 0.46) - the message itself stays
 -- standard white so it reads like normal chat text. A two-line, team-colored version (alien

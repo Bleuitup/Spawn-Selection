@@ -35,7 +35,17 @@ local networkVars =
 	-- decided by Shine's CustomSpawns plugin when it's present and configured for the current map
 	-- (see HiveSpawnSelector_Server.lua). Empty otherwise, in which case the client falls back to
 	-- GetTeamNumberAllowed().
-	legalAlienSpawns = "string (256)"
+	legalAlienSpawns = "string (256)",
+	-- Comma-separated display-case location names of every legal marine spawn for the current
+	-- pick - the same list the announce chat message carries, never just the one actually chosen
+	-- (see AnnounceSelection in HiveSpawnSelector_Server.lua for why). Empty when there is no
+	-- pick. Read by the pregame banner.
+	marineSpawnCandidates = "string (256)",
+	-- Mirrors the server's kConfig.AnnounceToWholeTeam so the client-side banner can honour the
+	-- commander-only mode. The chat announcement enforces this server-side by simply not sending
+	-- the message; the banner is driven off always-propagated GameInfo state instead, so it needs
+	-- the flag itself.
+	announceToWholeTeam = "boolean"
 }
 
 local originalGameInfoOnCreate
@@ -47,6 +57,8 @@ originalGameInfoOnCreate = Class_ReplaceMethod("GameInfo", "OnCreate",
 			self.spawnSelectionEnabled = true
 			self.spawnSelected = Entity.invalidId
 			self.legalAlienSpawns = ""
+			self.marineSpawnCandidates = ""
+			self.announceToWholeTeam = true
 		end
 
 	end
@@ -64,6 +76,14 @@ function GameInfo:GetLegalAlienSpawns()
 	return self.legalAlienSpawns
 end
 
+function GameInfo:GetMarineSpawnCandidates()
+	return self.marineSpawnCandidates
+end
+
+function GameInfo:GetAnnounceToWholeTeam()
+	return self.announceToWholeTeam
+end
+
 if Server then
 
 	function GameInfo:SetSpawnSelectionEnabled(enabled)
@@ -76,6 +96,14 @@ if Server then
 
 	function GameInfo:SetLegalAlienSpawns(commaSeparatedNames)
 		self.legalAlienSpawns = commaSeparatedNames or ""
+	end
+
+	function GameInfo:SetMarineSpawnCandidates(commaSeparatedNames)
+		self.marineSpawnCandidates = commaSeparatedNames or ""
+	end
+
+	function GameInfo:SetAnnounceToWholeTeam(announceToWholeTeam)
+		self.announceToWholeTeam = announceToWholeTeam == true
 	end
 
 end
