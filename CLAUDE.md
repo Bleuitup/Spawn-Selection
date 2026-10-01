@@ -203,6 +203,22 @@ globals if they happen to exist at runtime:
   own map configs only declare `enemyspawns` on the marine side (e.g. `ns2_docking`'s single alien
   spot has none of its own even though its marine partner lists it). `PickMarineSpawnFromCustomSpawns`
   instead scans every marine-eligible entry for one whose `enemyspawns` lists the alien's location.
+- **Never define `TechPoint:GetTeamNumberAllowed` unconditionally — only where it is missing.**
+  Vanilla defines it inside an `if Server then` block (`ns2/lua/TechPoint.lua:135`), and
+  CustomSpawns wraps that server-side method at *file scope*, not from `Initialise`
+  (`SetupClassHook("TechPoint", "GetTeamNumberAllowed", "OnTechPointGetTeamNumberAllowed",
+  "ActivePre")`), so its handler can return the plugin's own per-map team value (0/1/2/3) in place
+  of the map's `allowedTeamNumber`. This mod used to define the method flat in
+  `HiveSpawnSelector_Shared.lua` for the client's benefit, which on the Server **replaced that
+  wrapper** and silently dropped CustomSpawns' restriction. The bodies are identical
+  (`return self.allowedTeamNumber`), so nothing looked wrong — the only casualty was the hook.
+  Symptom: with **no** commander pick (pregame, or an explicit "random"), vanilla
+  `ChooseTechPoint` could hand marines an aliens-only tech point; CustomSpawns' own
+  `PostChooseTechPoint` then read that spawn's `enemyspawns` and routed the aliens there, e.g.
+  aliens starting in Shipping on `ns2_tram`. It only ever showed up with no pick, because when
+  there *is* one our `OnPreChooseTechPoint` answers the marines call itself and short-circuits
+  before `PostChooseTechPoint` can run (see the load-order note above). Diagnosed and confirmed
+  from the server side with a 40-reset test on two trams.
 - **Plugin/mod load order does not matter here**, despite Shine auto-wiring same-named hook
   methods (for registered plugins) in alphabetical-by-plugin-name order for ties, and despite our
   own registration being lazy. Reason: CustomSpawns' own `:PreChooseTechPoint` only ever returns

@@ -22,9 +22,18 @@ Shared.RegisterNetworkMessage("HiveSpawnSelector_Announce", { techPointId = "ent
 
 -- Vanilla only defines TechPoint:GetTeamNumberAllowed() inside an "if Server then" block,
 -- so the method does not exist on the client even though the allowedTeamNumber networkVar is
--- synced. Define a shared getter so the commander UI can read it client-side. (NSL does the same.)
-function TechPoint:GetTeamNumberAllowed()
-	return self.allowedTeamNumber
+-- synced. Define a getter so the commander UI can read it client-side. (NSL does the same.)
+--
+-- Only where it is missing (Client / Predict): on the Server the vanilla method already exists,
+-- and Shine's CustomSpawns plugin hooks it (SetupClassHook "TechPoint", "GetTeamNumberAllowed")
+-- to enforce its per-map marines-only / aliens-only tech points. Redefining it here on the
+-- Server replaced that hook, so with no commander pick (pregame, "random") marines could take an
+-- aliens-only spawn and CustomSpawns then sent the aliens to that spawn's enemyspawns - e.g.
+-- aliens starting in Shipping on ns2_tram.
+if not TechPoint.GetTeamNumberAllowed then
+	function TechPoint:GetTeamNumberAllowed()
+		return self.allowedTeamNumber
+	end
 end
 
 local networkVars =
