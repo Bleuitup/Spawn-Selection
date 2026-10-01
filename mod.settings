@@ -1,43 +1,41 @@
 name        = "Hive Spawn Selector"
 source_dir  = "source"
 output_dir  = "output"
-description = [=[[b]Lets the Aliens team choose where they start each round.[/b] Once the alien commander picks a hive location, the Marines are automatically assigned a different starting tech point.
+description = [=[[b]This mod is whitelisted.[/b]
+
+[b]Lets the Aliens team choose where they start each round.[/b] Once the alien commander picks a hive location, the Marines are automatically assigned a different starting tech point.
 
 Handy for scrims, captains games, casual competitive play, or any server that wants deliberate starting positions instead of the usual random spawns.
 
 [h1]What it does[/h1]
-
 [list]
 [*] Before the round starts, the alien commander sees a "SELECT STARTING LOCATION" panel listing every hive location available on the map.
 [*] Whatever the commander selects becomes the alien starting hive.
 [*] The marine base is placed at a different start location, chosen at random from the map's valid opposing spawns for the alien's pick.
 [*] The selection is highlighted in green and syncs to the alien team so everyone can see the chosen spot.
 [*] The alien team gets a chat message announcing the pick, tagged "[Hive Spawn Selector]" in magenta, naming every legal marine spawn for it too (not which one actually won the random draw) — configurable to the commander only, see Server admin below.
+[*] Until the round starts, the pick also stays on screen as a banner under the HUD top bar, so anyone who missed the chat message — including players who join, switch to aliens, or reconnect after the pick was made — can still see where the team is starting. It disappears the moment the round begins.
 [/list]
 
 [h1]Recommended setup[/h1]
-
 [list]
 [*] Strongly recommended: run a "ready up before the round starts" plugin, such as Shine's [b]Tournament Mode[/b], so both teams lock in and the countdown only begins once everyone is ready. Without one, the alien commander may only get a few seconds to pick before the round starts on its own.
 [*] Specifically avoid the common setup where the round auto-starts a fixed countdown (e.g. 15 seconds) as soon as both teams have a commander, with teams shuffled partway through (e.g. 5 seconds before the round begins). That leaves no good moment to pick: choosing before the shuffle announces the pick to the current alien roster, and the shuffle can then move roughly half of them onto Marines — so part of the enemy team sees the pick before the round even begins. Choosing after the shuffle is too late either way, since spawns are resolved almost immediately alongside it.
 [/list]
 
 [h1]Server admin[/h1]
-
 [list]
 [*] [b]sv_spawnselect true/false[/b] — enable or disable alien spawn selection (enabled by default).
-[*] [b]configs/HiveSpawnSelectorConfig.json[/b] — set "AnnounceToWholeTeam" to false to send the pick announcement to the alien commander only instead of the whole team, if your server can't avoid the shuffle-timing issue above.
+[*] [b]configs/HiveSpawnSelectorConfig.json[/b] — set "AnnounceToWholeTeam" to false to send the pick announcement to the alien commander only instead of the whole team, if your server can't avoid the shuffle-timing issue above. The on-screen banner follows the same setting.
 [/list]
 
 [h1]Compatibility[/h1]
-
 [list]
 [*] Do not run alongside NSL — it drives the same underlying spawn setting and the two mods will fight over it.
 [*] Works alongside Shine's CustomSpawns plugin (from Shine-Epsilon) automatically. If it's installed and configured for the current map, the picker restricts itself to the locations CustomSpawns allows aliens to start at, and pairs marines using its own legal combinations. No configuration needed here — it's detected automatically, and every other map or server falls back to the behavior above.
 [/list]
 
 [h1]Additional Credits[/h1]
-
 Based on the spawn-selection feature from the NSL (Natural Selection League) plugin by Dragon (xToken). The original code has been adapted into this focused, standalone mod. All credit for the underlying approach goes to the NSL project and its author.
 
 Thanks to LZZ for their help with the 1.0 release.
